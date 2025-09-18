@@ -1,3 +1,5 @@
 *.html linguist-vendored
+*.Makefile linguist-vendored
+*.jaScript linguist-vendored
 *.rs linguist-detectable=true
 
