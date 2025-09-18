@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["HIG_PAIR","REG_PAIR"],"fn":["add_todo","main"]};
