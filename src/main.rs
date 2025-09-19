@@ -1,37 +1,87 @@
 use ncurses::*;
 use std::cmp::min;
+use std::fs::File;
+use std::io::{BufRead, Write};
 
 const REG_PAIR: i16 = 0;
 const HIG_PAIR: i16 = 1;
 
-fn main() {
-    initscr(); // initialize ncurses
-    noecho();
-    //let hig = getmaxy(stdscr());
-    //let wid = getmaxx(stdscr());
+fn save_state(file_path: &str, todos: &Vec<String>, stat: &Vec<bool>) {
+    let mut file = File::create(file_path).unwrap();
+    for (todo, sta) in todos.iter().zip(stat.iter()) {
+        writeln!(file, "{}:{}", sta, todo).unwrap();
+    }
+}
+fn load_state(file_path: &str, todos: &mut Vec<String>, stat: &mut Vec<bool>) {
+    {
+        let file = File::open(file_path).unwrap();
+        for line in std::io::BufReader::new(file).lines() {
+            match parse_todo(&line.unwrap()) {
+                Some((st, title)) => {
+                    todos.push(title.to_string());
+                    stat.push(st);
+                }
+                None => {
+                    eprintln!("ERROR: not a vaild format");
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+}
 
+fn parse_todo(line: &str) -> Option<(bool, &str)> {
+    let done_pre = "true:";
+    let undone_pre = "false:";
+
+    if line.starts_with(done_pre) {
+        return Some((true, &line[done_pre.len()..]));
+    }
+    if line.starts_with(undone_pre) {
+        return Some((false, &line[undone_pre.len()..]));
+    } else {
+        None
+    }
+}
+
+fn main() {
+    //add args to read filepath and file missing
+    let mut args = std::env::args();
+    args.next().unwrap();
+
+    let file_path = match args.next() {
+        Some(file_path) => file_path,
+        None => {
+            eprintln!("Usage: todo-rs <file_path>");
+            eprintln!("ERROR: no file path is provided");
+            std::process::exit(1);
+        }
+    };
     //lists and other stuff
-    let mut todos: Vec<String> = vec![
-        "todo1".to_string(),
-        "todo2".to_string(),
-        "todo3".to_string(),
-        "hi".to_string(),
-    ];
-    let mut stat = [false, false, false, false];
+    let mut todos = Vec::<String>::new();
+
+    let mut stat = Vec::<bool>::new();
 
     //ui comps
-    start_color();
-    init_pair(REG_PAIR, COLOR_WHITE, COLOR_BLACK);
-    init_pair(HIG_PAIR, COLOR_BLACK, COLOR_WHITE);
 
     let done: &str = "[x]";
     let undone: &str = "[ ]";
 
-    //quting mechanism
-    let mut quit: bool = false;
-
     let mut curr = 0;
 
+    load_state(&file_path, &mut todos, &mut stat);
+    initscr(); // initialize ncurses
+    noecho();
+
+    //let hig = getmaxy(stdscr());
+    //let wid = getmaxx(stdscr());
+
+    start_color();
+    init_pair(REG_PAIR, COLOR_WHITE, COLOR_BLACK);
+    init_pair(HIG_PAIR, COLOR_BLACK, COLOR_WHITE);
+
+    //quting mechanism
+    let mut quit: bool = false;
     while !quit {
         for (row, todo) in todos.iter().enumerate() {
             let pair: i16 = {
@@ -65,23 +115,19 @@ fn main() {
             '\n' => {
                 stat[curr] = !stat[curr];
             }
-            'a' => {
-                let sen: String = "hello".to_string();
-                add_todo(&mut todos, sen);
-            }
+            //'a' => {
+            //    let sen: String = "hello".to_string();
+            //    add_todo(&mut todos, sen);
+            //}
             //a => add todo
             //d => delete todo
             //e => save or persist
             //\t => edit todo
-            //test
             _ => {}
         }
     }
 
+    save_state(&file_path, &todos, &stat);
     refresh();
     endwin();
-}
-
-fn add_todo(v: &mut Vec<String>, sen: String) {
-    v.push(sen.to_string());
 }
